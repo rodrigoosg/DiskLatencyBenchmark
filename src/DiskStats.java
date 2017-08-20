@@ -20,39 +20,33 @@ import java.util.Date;
 public class DiskStats {
 
   private String filename;
-  private long samples;
-  long writeDuration;
-  long writeDurationAverage;  
-  static long readDuration;
   
-  public DiskStats(String filename, long samples) {
+  public DiskStats(String filename) {
 	  this.filename = filename;
-	  this.samples = samples;
   }
   
-  public long run() throws InterruptedException {
-	writeDuration = 0;
-	readDuration = 0;
+  public long getWriteDurationAverage(int samples) throws InterruptedException {
+	long writeDuration = 0;
+	long writeDurationSum = 0;
+	long writeDurationAverage = 0;
 	long n = 0;
 	while (n < samples) {
 		n++;
-		writeDuration += write(filename, 16384);
-		//readDuration = read(file);
-		Thread.sleep(10);
-		//System.out.println("n:" + n);
+		writeDuration = getWriteDuration(filename, 16384);
+		writeDurationSum += writeDuration;
+		Thread.sleep(500);
+		System.out.println("Write Duration: " + writeDuration + " ms.");
 	}
-	writeDuration = writeDuration / n;
-	return writeDuration;
+	writeDurationAverage = writeDurationSum / n;
+	System.out.println("Write Duration Sum: " + writeDurationSum + " ms.");
+	System.out.println("Write Duration Average: " + writeDurationAverage + " ms.");
+	return writeDurationAverage;
   }
   
-  private long write(String filename, int length) {
+  private long getWriteDuration(String filename, int length) {
 	  char[] data = new char[length];
-	  for (int i = 0; i < length; i++) {
-		  data[i] = 'a';
-	  }
 	  long initialTime = new Date().getTime();
 	  String string = new String(data);
-	  //System.out.println(string);
 	  try (Writer writer = new BufferedWriter(new OutputStreamWriter(
 		new FileOutputStream(filename), "utf-8"))) {
 		writer.write(string);
@@ -63,30 +57,21 @@ public class DiskStats {
 	  }
 	  long finalTime = new Date().getTime();
 	  long duration = (finalTime - initialTime);
-	  //System.out.println("writeDuration:" + duration);
 	  return duration;
   }
 
   public static void main(String[] args) {
 	long initialTrialsTime = new Date().getTime();
-	DiskStats ds = new DiskStats("tests/DiskStats.txt", 100);
-	int trials = 1;
+	DiskStats ds = new DiskStats("tests/DiskStats.txt");
+	long writeDurationAverage = 0;
+	int trials = 100;
 	try {
-		int n = 0;
-		while (n < trials) {
-			n++;
-			ds.run();
-			ds.writeDurationAverage += ds.writeDuration;
-			System.out.println("Write Duration: " + ds.writeDuration + " ms.");
-			//Thread.sleep(1000);
-		}
-		ds.writeDurationAverage = ds.writeDurationAverage / n;	
+		writeDurationAverage = ds.getWriteDurationAverage(trials);
 	} catch (InterruptedException e) {
 		e.printStackTrace();
 	}
 	long finalTrialsTime = new Date().getTime();
 	long testsDuration = finalTrialsTime - initialTrialsTime;
-	System.out.println("Write Duration Average: " + ds.writeDurationAverage + " ms.");	
 	System.out.println("Tests Duration: " + testsDuration + " ms.");
   }
 
