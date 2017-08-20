@@ -34,7 +34,7 @@ public class DiskStats {
 		n++;
 		writeDuration = getWriteDuration(filename, 16384);
 		writeDurationSum += writeDuration;
-		Thread.sleep(500);
+		Thread.sleep(1000);
 		System.out.println("Write Duration: " + writeDuration + " ms.");
 	}
 	writeDurationAverage = writeDurationSum / n;
@@ -63,10 +63,9 @@ public class DiskStats {
   public static void main(String[] args) {
 	long initialTrialsTime = new Date().getTime();
 	DiskStats ds = new DiskStats("tests/DiskStats.txt");
-	long writeDurationAverage = 0;
-	int trials = 100;
+	int trials = 500;
 	try {
-		writeDurationAverage = ds.getWriteDurationAverage(trials);
+		ds.getWriteDurationAverage(trials);
 	} catch (InterruptedException e) {
 		e.printStackTrace();
 	}
