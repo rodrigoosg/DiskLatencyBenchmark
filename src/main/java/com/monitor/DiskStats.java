@@ -26,12 +26,12 @@ public class DiskStats {
 	  this.filename = filename;
   }
   
-  public long getWriteDurationAverage(int samples) throws InterruptedException {
+  public long getWriteDurationAverage(long testTotalDurationInSeconds) throws InterruptedException {
 	long writeDuration = 0;
 	long writeDurationSum = 0;
 	long writeDurationAverage = 0;
 	long n = 0;
-	while (n < samples) {
+	while (n < testTotalDurationInSeconds) {
 		n++;
 		writeDuration = getWriteDuration(filename, 16384);
 		writeDurationSum += writeDuration;
@@ -62,11 +62,17 @@ public class DiskStats {
   }
 
   public static void main(String[] args) {
+	System.out.println(args);
+	if(args.length < 2) {
+		System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <Disk Target> <Test Duration>");
+		System.exit(1);
+	}
 	long initialTrialsTime = new Date().getTime();
-	DiskStats ds = new DiskStats("tests/DiskStats.txt");
-	int trials = 10;
+	DiskStats ds = new DiskStats(args[0]);
+	int testTotalDurationInMinutes = Integer.parseInt(args[1]);
+	long testTotalDurationInSeconds = testTotalDurationInMinutes;
 	try {
-		ds.getWriteDurationAverage(trials);
+		ds.getWriteDurationAverage(testTotalDurationInSeconds);
 	} catch (InterruptedException e) {
 		e.printStackTrace();
 	}
