@@ -1,3 +1,4 @@
+package com.monitor;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class DiskStats {
   public static void main(String[] args) {
 	long initialTrialsTime = new Date().getTime();
 	DiskStats ds = new DiskStats("tests/DiskStats.txt");
-	int trials = 500;
+	int trials = 10;
 	try {
 		ds.getWriteDurationAverage(trials);
 	} catch (InterruptedException e) {
