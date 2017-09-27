@@ -49,7 +49,8 @@ public class DiskStats {
 	double BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = 0;
 	double MORE_THAN_10000_MILLISECONDS_PERCENTAGE = 0;
 	DecimalFormat df = new DecimalFormat();
-	System.out.println("DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
+	df.setMaximumFractionDigits(2);
+	System.out.println("type,DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
 	while (n < testTotalDurationInSeconds || runContinously == true) {
 		n++;
 		writeDuration = getWriteDuration(filename, 16384);
@@ -70,7 +71,7 @@ public class DiskStats {
 		} else if (writeDuration > 10000) {
 			MORE_THAN_10000_MILLISECONDS++;
 		}
-		System.out.println(new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
+		System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
 		if(n % calculationPeriod == 0) {
 			writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
 			LESS_THAN_50_MILLISECONDS_PERCENTAGE = LESS_THAN_50_MILLISECONDS / calculationPeriod;
