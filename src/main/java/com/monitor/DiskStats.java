@@ -27,7 +27,7 @@ public class DiskStats {
 	  this.filename = filename;
   }
   
-  public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, int calculationPeriod) throws InterruptedException {
+  public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, long writeSize, int calculationPeriod) throws InterruptedException {
 	long writeDuration = 0;
 	long writeDurationSum = 0;
 	long writeDurationSumInLastMinute = 0;
@@ -53,7 +53,7 @@ public class DiskStats {
 	System.out.println("type,DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
 	while (n < testTotalDurationInSeconds || runContinously == true) {
 		n++;
-		writeDuration = getWriteDuration(filename, 16384);
+		writeDuration = getWriteDuration(filename, writeSize);
 		writeDurationSum += writeDuration;
 		writeDurationSumInLastMinute += writeDuration;
 		if(writeDuration <= 50) {
@@ -93,10 +93,9 @@ public class DiskStats {
 	return totalWriteDurationAverage;
   }
   
-  private long getWriteDuration(String filename, int length) {
-	  char[] data = new char[length];
+  private long getWriteDuration(String filename, long length) {
 	  long initialTime = new Date().getTime();
-	  String string = new String(data);
+	  String string = randomAlphaNumeric(length);
 	  try (Writer writer = new BufferedWriter(new OutputStreamWriter(
 		new FileOutputStream(filename), "utf-8"))) {
 		writer.write(string);
@@ -110,6 +109,17 @@ public class DiskStats {
 	  return duration;
   }
 
+  private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	
+  public static String randomAlphaNumeric(long count) {
+    StringBuilder builder = new StringBuilder();
+    while (count-- != 0) {
+      int character = (int) (Math.random() * ALPHA_NUMERIC_STRING.length());
+      builder.append(ALPHA_NUMERIC_STRING.charAt(character));
+    }
+	return builder.toString();
+  }
+  
   public static void main(String[] args) {
 	if(args.length < 4) {
 		System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period>");
@@ -120,11 +130,12 @@ public class DiskStats {
 	long testTotalDurationInSeconds = Integer.parseInt(args[1]);
 	boolean runContinously = Boolean.parseBoolean(args[2]);
 	int writesPerSecond = Integer.parseInt(args[3]);
-	int calculationPeriod = Integer.parseInt(args[4]);
+	long writeSize = Long.parseLong(args[4]);
+	int calculationPeriod = Integer.parseInt(args[5]);
 	System.out.println("Writting " + writesPerSecond + " per second...");
 	
 	try {
-		ds.getWriteDurationAverage(testTotalDurationInSeconds, runContinously, writesPerSecond, calculationPeriod);
+		ds.getWriteDurationAverage(testTotalDurationInSeconds, runContinously, writesPerSecond, writeSize, calculationPeriod);
 	} catch (InterruptedException e) {
 		e.printStackTrace();
 	}
