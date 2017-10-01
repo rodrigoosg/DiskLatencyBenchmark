@@ -10,7 +10,7 @@ class CloudWatchMetricPublisherISpec extends Specification {
 	CloudWatchMetricPublisher cloudWatchMetricPublisher
 	
 	def setup() {
-		cloudWatchMetricPublisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials")
+		cloudWatchMetricPublisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials", "LOCAL-TESTS")
 	}
 	
 	def "should execute metric publication"() {
@@ -18,7 +18,7 @@ class CloudWatchMetricPublisherISpec extends Specification {
 		def publishedResult = cloudWatchMetricPublisher.publishMetrics(20)
 		
 		then:
-		publishedResult.toString() == [[[name:"Latency", value:"20", unit:"Milliseconds"]]].toString()
+		publishedResult.toString() == [[[name:"Latency", value:"20", unit:"Milliseconds", dimension: "LOCAL-TESTS"]]].toString()
 
 	}
 	

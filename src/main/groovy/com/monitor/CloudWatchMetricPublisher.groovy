@@ -8,25 +8,26 @@ import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 
 class CloudWatchMetricPublisher {
 
-	String owner = "dev"
+	String owner
 	AmazonCloudWatchClient awsCloudwatchClient
 
 	CloudWatchMetricPublisher(){
 		String endpoint = "monitoring.us-west-2.amazonaws.com"
 		String signingRegion = "us-west-2"
+		owner = "default"
 
-		awsCloudwatchClient = new AmazonCloudWatchClient(new PropertiesCredentials(new File("/opt/aws/awsCredentials")))
-		
-		def AmazonCloudWatchClientBuilder builder =	AmazonCloudWatchClientBuilder.defaultClient();
-		
-		builder.setEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion));
+		AWSStaticCredentialsProvider awsStaticCredentialsProvider = new AWSStaticCredentialsProvider(new PropertiesCredentials(new File(credentialsFile)))
+		awsCloudwatchClient = AmazonCloudWatchClientBuilder.standard()
+		.withEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion))
+		.withCredentials(awsStaticCredentialsProvider)
+		.build()
 	}
 
-	CloudWatchMetricPublisher(String region, String credentialsFile){
+	CloudWatchMetricPublisher(String region, String credentialsFile, String ownerParam){
 		String endpoint = "monitoring." + region + ".amazonaws.com"
 		String signingRegion = region
+		owner = ownerParam
 
-		//awsCloudwatchClient = new AmazonCloudWatchClient(new PropertiesCredentials(new File(credentialsFile)))
 		AWSStaticCredentialsProvider awsStaticCredentialsProvider = new AWSStaticCredentialsProvider(new PropertiesCredentials(new File(credentialsFile)))
 		awsCloudwatchClient = AmazonCloudWatchClientBuilder.standard()
 		.withEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion))
@@ -47,7 +48,7 @@ class CloudWatchMetricPublisher {
 		data.collate(20).each { piece ->
 			putMetricDataRequest = new PutMetricDataRequest()
 			putMetricDataRequest.setMetricData(buildMetricDataRequest(piece))
-			putMetricDataRequest.setNamespace("DFW/EFS/${owner}")
+			putMetricDataRequest.setNamespace("DFW/EFS")
 
 			//Send metrics to Cloudwatch
 			awsCloudwatchClient.putMetricData(putMetricDataRequest)
@@ -57,7 +58,7 @@ class CloudWatchMetricPublisher {
 	def collectMetrics(latency) {
 
 		def metrics = []
-		metrics <<  [ name: "Latency", value: latency, unit: StandardUnit.Milliseconds ]
+		metrics <<  [ name: "Latency", value: latency, unit: StandardUnit.Milliseconds, dimension: owner ]
 
 		return metrics
 	}
@@ -67,11 +68,17 @@ class CloudWatchMetricPublisher {
 		def timestamp = new Date()
 
 		data.each{ it ->
+			
+			Dimension dimension = new Dimension()
+			.withName("EFS Custom Metrics")
+			.withValue(it.dimension);
+			
 			def datum = new MetricDatum()
 			datum.withTimestamp(timestamp)
 			datum.withMetricName(it.name)
 			datum.withValue(it.value)
 			datum.withUnit(it.unit)
+			datum.withDimensions(dimension)
 
 			metricData << datum
 		}
