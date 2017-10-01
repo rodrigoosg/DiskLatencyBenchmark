@@ -41,7 +41,7 @@ class CloudWatchMetricPublisher {
 		def data =  collectMetrics(latency)
 		
 		//Print data
-		data.each { println it }
+		//data.each { println it }
 
 		//Create request
 		//Each request can have up to 20 data points

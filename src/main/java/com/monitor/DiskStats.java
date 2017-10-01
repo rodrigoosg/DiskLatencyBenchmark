@@ -22,9 +22,11 @@ import java.util.Date;
 public class DiskStats {
 
   private String filename;
+  CloudWatchMetricPublisher publisher;
   
-  public DiskStats(String filename) {
+  public DiskStats(String filename, String fileSystemId) {
 	  this.filename = filename;
+	  this.publisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials", fileSystemId);
   }
   
   public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, long writeSize, int calculationPeriod) throws InterruptedException {
@@ -72,6 +74,7 @@ public class DiskStats {
 			MORE_THAN_10000_MILLISECONDS++;
 		}
 		System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
+		this.publisher.publishMetrics(writeDuration);
 		if(n % calculationPeriod == 0) {
 			writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
 			LESS_THAN_50_MILLISECONDS_PERCENTAGE = LESS_THAN_50_MILLISECONDS / calculationPeriod;
@@ -121,12 +124,12 @@ public class DiskStats {
   }
   
   public static void main(String[] args) {
-	if(args.length < 4) {
+	if(args.length < 6) {
 		System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period>");
 		System.exit(1);
 	}
 	long initialTrialsTime = new Date().getTime();
-	DiskStats ds = new DiskStats(args[0]);
+	DiskStats ds = new DiskStats(args[0], args[6]);
 	long testTotalDurationInSeconds = Integer.parseInt(args[1]);
 	boolean runContinously = Boolean.parseBoolean(args[2]);
 	int writesPerSecond = Integer.parseInt(args[3]);
