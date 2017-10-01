@@ -9,12 +9,16 @@ import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration
 class CloudWatchMetricPublisher {
 
 	String owner = "dev"
+	AmazonCloudWatchClient awsCloudwatchClient
 
 	CloudWatchMetricPublisher(){
 		String endpoint = "monitoring.us-west-2.amazonaws.com"
 		String signingRegion = "us-west-2"
 
 		awsCloudwatchClient = new AmazonCloudWatchClient(new PropertiesCredentials(new File("/opt/aws/awsCredentials")))
+		
+		def AmazonCloudWatchClientBuilder builder =	AmazonCloudWatchClientBuilder.defaultClient();
+		
 		builder.setEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion));
 	}
 
@@ -22,14 +26,16 @@ class CloudWatchMetricPublisher {
 		String endpoint = "monitoring." + region + ".amazonaws.com"
 		String signingRegion = region
 
-		awsCloudwatchClient = new AmazonCloudWatchClient(new PropertiesCredentials(new File("/opt/aws/awsCredentials")))
-		builder.setEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion));
+		//awsCloudwatchClient = new AmazonCloudWatchClient(new PropertiesCredentials(new File(credentialsFile)))
+		AWSStaticCredentialsProvider awsStaticCredentialsProvider = new AWSStaticCredentialsProvider(new PropertiesCredentials(new File(credentialsFile)))
+		awsCloudwatchClient = AmazonCloudWatchClientBuilder.standard()
+		.withEndpointConfiguration(new EndpointConfiguration(endpoint, signingRegion))
+		.withCredentials(awsStaticCredentialsProvider)
+		.build()
 	}
 		
-	def publishMetrics(latency) {
-		AmazonCloudWatchClient awsCloudwatchClient
+	public def publishMetrics(latency) {
 		PutMetricDataRequest putMetricDataRequest
-		EndpointConfiguration builder;
 		
 		def data =  collectMetrics(latency)
 		
