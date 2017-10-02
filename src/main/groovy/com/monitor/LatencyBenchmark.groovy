@@ -122,12 +122,12 @@ class LatencyBenchmark {
 	}
 	
 	public static void main(String[] args) {
-	  if(args.length < 6) {
-		  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period> <Cloudwatch Dimension>");
+	  if(args.length < 7) {
+		  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period> <Cloudwatch Dimension> <Cloudwatch Namespace>");
 		  System.exit(1);
 	  }
 	  long initialTrialsTime = new Date().getTime();
-	  LatencyBenchmark ds = new LatencyBenchmark(args[0], args[6], "DFW/EFS");
+	  LatencyBenchmark ds = new LatencyBenchmark(args[0], args[6], args[7]);
 	  long testTotalDurationInSeconds = Integer.parseInt(args[1]);
 	  boolean runContinously = Boolean.parseBoolean(args[2]);
 	  int writesPerSecond = Integer.parseInt(args[3]);

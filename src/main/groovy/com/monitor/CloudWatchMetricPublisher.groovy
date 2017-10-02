@@ -116,7 +116,7 @@ class CloudWatchMetricPublisher {
 		data.each{ it ->
 			
 			Dimension dimension = new Dimension()
-			.withName("EFS Custom Metrics")
+			.withName("Filesystems Custom Metrics")
 			.withValue(it.dimension);
 			
 			def datum = new MetricDatum()
