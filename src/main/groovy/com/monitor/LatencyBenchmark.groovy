@@ -13,9 +13,9 @@ class LatencyBenchmark {
 	private String filename;
 	CloudWatchMetricPublisher publisher;
 	
-	public LatencyBenchmark(String filename, String fileSystemId) {
+	public LatencyBenchmark(String filename, String dimension, String namespace) {
 		this.filename = filename;
-		this.publisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials", fileSystemId);
+		this.publisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials", dimension, namespace);
 	}
 	
 	public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, long writeSize, int calculationPeriod) throws InterruptedException {
@@ -63,18 +63,27 @@ class LatencyBenchmark {
 			  MORE_THAN_10000_MILLISECONDS++;
 		  }
 		  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
-		  this.publisher.publishMetrics(writeDuration);
+		  this.publisher.publishMetric(writeDuration);
 		  if(n % calculationPeriod == 0) {
+			  
+			  //Calculate metrics inside the period
 			  writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
-			  LESS_THAN_50_MILLISECONDS_PERCENTAGE = LESS_THAN_50_MILLISECONDS / calculationPeriod;
-			  BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = BETWEEN_50_AND_100_MILLISECONDS / calculationPeriod;
-			  BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = BETWEEN_100_AND_500_MILLISECONDS / calculationPeriod;
-			  BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = BETWEEN_500_AND_1000_MILLISECONDS / calculationPeriod;
-			  BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = BETWEEN_1000_AND_5000_MILLISECONDS / calculationPeriod;
-			  BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = BETWEEN_5000_AND_10000_MILLISECONDS / calculationPeriod;
-			  MORE_THAN_10000_MILLISECONDS_PERCENTAGE = MORE_THAN_10000_MILLISECONDS / calculationPeriod;
+			  LESS_THAN_50_MILLISECONDS_PERCENTAGE = (LESS_THAN_50_MILLISECONDS / calculationPeriod)*100;
+			  BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = (BETWEEN_50_AND_100_MILLISECONDS / calculationPeriod)*100;
+			  BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = (BETWEEN_100_AND_500_MILLISECONDS / calculationPeriod)*100;
+			  BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = (BETWEEN_500_AND_1000_MILLISECONDS / calculationPeriod)*100;
+			  BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = (BETWEEN_1000_AND_5000_MILLISECONDS / calculationPeriod)*100;
+			  BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = (BETWEEN_5000_AND_10000_MILLISECONDS / calculationPeriod)*100;
+			  MORE_THAN_10000_MILLISECONDS_PERCENTAGE = (MORE_THAN_10000_MILLISECONDS / calculationPeriod)*100;
 			  totalWriteDurationAverage = writeDurationSum / n;
-			  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE*100) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE*100) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE*100) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE*100) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE*100) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE*100) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE*100) + "," + writeDurationSum + "," + totalWriteDurationAverage);
+			  
+			  //Publish metrics to cloudwatch
+			  List metricsList = [LESS_THAN_50_MILLISECONDS_PERCENTAGE,BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE,BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE,BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE,BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE,BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE,MORE_THAN_10000_MILLISECONDS_PERCENTAGE];
+			  this.publisher.publishMetrics(metricsList);
+			  
+			  //Print metrics to CSV format
+			  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE) + "," + writeDurationSum + "," + totalWriteDurationAverage);
+			  
 			  // Reseting variables so we get just the last minute statistics for them.
 			  writeDurationSumInLastMinute = writeDurationAverageInLastMinute = 0;
 			  LESS_THAN_50_MILLISECONDS = BETWEEN_50_AND_100_MILLISECONDS = BETWEEN_100_AND_500_MILLISECONDS = BETWEEN_500_AND_1000_MILLISECONDS = BETWEEN_1000_AND_5000_MILLISECONDS = BETWEEN_5000_AND_10000_MILLISECONDS = MORE_THAN_10000_MILLISECONDS = 0.0;
@@ -114,11 +123,11 @@ class LatencyBenchmark {
 	
 	public static void main(String[] args) {
 	  if(args.length < 6) {
-		  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period>");
+		  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <statistics calculation period> <Cloudwatch Dimension>");
 		  System.exit(1);
 	  }
 	  long initialTrialsTime = new Date().getTime();
-	  LatencyBenchmark ds = new LatencyBenchmark(args[0], args[6]);
+	  LatencyBenchmark ds = new LatencyBenchmark(args[0], args[6], "DFW/EFS");
 	  long testTotalDurationInSeconds = Integer.parseInt(args[1]);
 	  boolean runContinously = Boolean.parseBoolean(args[2]);
 	  int writesPerSecond = Integer.parseInt(args[3]);
