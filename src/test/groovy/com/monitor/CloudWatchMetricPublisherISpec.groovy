@@ -3,8 +3,10 @@
  */
 package com.monitor
 
+import spock.lang.Ignore
 import spock.lang.Specification;
 
+@Ignore
 class CloudWatchMetricPublisherISpec extends Specification {
 
 	CloudWatchMetricPublisher cloudWatchMetricPublisher
