@@ -43,6 +43,7 @@ class LatencyBenchmark {
 	  double BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = 0;
 	  double BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = 0;
 	  double MORE_THAN_10000_MILLISECONDS_PERCENTAGE = 0;
+	  String filenameTimestamp = "-" + new Date().time.toString();
 	  DecimalFormat df = new DecimalFormat();
 	  df.setMaximumFractionDigits(2);
 	  System.out.println("type,DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
@@ -50,16 +51,16 @@ class LatencyBenchmark {
 		  n++;
 		  if(type == "LoadGen") {
 			  def thread1 = Thread.start { 
-				  writeDuration += getWriteDuration(filename + "-thread1", writeSize);
+				  writeDuration += getAppendDuration(filename + "-thread1" + filenameTimestamp, writeSize);
 			  }
 			  def thread2 = Thread.start {
-				  writeDuration += getWriteDuration(filename + "-thread2", writeSize);
+				  writeDuration += getAppendDuration(filename + "-thread2" + filenameTimestamp, writeSize);
 			  }
 			  def thread3 = Thread.start {
-				  writeDuration += getWriteDuration(filename + "-thread3", writeSize);
+				  writeDuration += getAppendDuration(filename + "-thread3" + filenameTimestamp, writeSize);
 			  }
 			  def thread4 = Thread.start {
-				  writeDuration += getWriteDuration(filename + "-thread4", writeSize);
+				  writeDuration += getAppendDuration(filename + "-thread4" + filenameTimestamp, writeSize);
 			  }
 			  
 			  thread1.join()
@@ -92,6 +93,8 @@ class LatencyBenchmark {
 		  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
 		  if (type == "Monitoring") this.publisher.publishMetric(writeDuration);
 		  if(n % calculationPeriod == 0) {
+			  //Change filename timestamp
+			  filenameTimestamp = "-" + new Date().time.toString();
 			  
 			  //Calculate metrics inside the period
 			  writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
@@ -137,6 +140,22 @@ class LatencyBenchmark {
 		return duration;
 	}
   
+	private long getAppendDuration(String filename, long length) {
+		long initialTime = new Date().getTime();
+		String string = randomAlphaNumeric(length);
+		try {
+		  Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename, true), "utf-8"))
+		  writer.append(string);
+		  writer.flush();
+		  writer.close();
+		} catch (IOException e) {
+		  e.printStackTrace();
+		}
+		long finalTime = new Date().getTime();
+		long duration = (finalTime - initialTime);
+		return duration;
+	}
+	
 	private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	  
 	public static String randomAlphaNumeric(long count) {
@@ -169,7 +188,7 @@ class LatencyBenchmark {
 		  ds = new LatencyBenchmark(args[1]);
 		  testTotalDurationInSeconds = Integer.parseInt(args[2]);
 		  runContinously = Boolean.parseBoolean(args[3]);
-		  writesPerSecond = (Integer.parseInt(args[4]) % 4 == 0) ? Integer.parseInt(args[4])/4 : 1;
+		  writesPerSecond = Integer.parseInt(args[4]);
 		  writeSize = Long.parseLong(args[5]);
 		  calculationPeriod = Integer.parseInt(args[6]);
 	  } else if (type == "Monitoring") {
