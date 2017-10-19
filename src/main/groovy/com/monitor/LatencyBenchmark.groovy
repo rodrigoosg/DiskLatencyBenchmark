@@ -7,6 +7,11 @@ import java.io.OutputStreamWriter
 import java.io.Writer
 import java.text.DecimalFormat
 import java.util.Date
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Callable
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.Future
 
 class LatencyBenchmark {
 	
@@ -22,7 +27,7 @@ class LatencyBenchmark {
 		this.publisher = new CloudWatchMetricPublisher("us-west-2", "resources/awsCredentials", dimension, namespace);
 	}
 	
-	public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, long writeSize, int calculationPeriod, String type) throws InterruptedException {
+	public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, int numberOfIOThreads, long writeSize, int calculationPeriod, String mode) throws InterruptedException {
 	  long writeDuration = 0;
 	  long writeDurationSum = 0;
 	  long writeDurationSumInLastMinute = 0;
@@ -46,80 +51,76 @@ class LatencyBenchmark {
 	  String filenameTimestamp = "-" + new Date().time.toString();
 	  DecimalFormat df = new DecimalFormat();
 	  df.setMaximumFractionDigits(2);
+	  def appendDurationClosure = {num ->
+		  writeDuration = getAppendDuration(filename + "-thread-" + num + filenameTimestamp, writeSize);
+	  }
+	  def threadPool = Executors.newFixedThreadPool(7);
 	  System.out.println("type,DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
-	  while (n < testTotalDurationInSeconds || runContinously == true) {
-		  n++;
-		  if(type == "LoadGen") {
-			  def thread1 = Thread.start { 
-				  writeDuration += getAppendDuration(filename + "-thread1" + filenameTimestamp, writeSize);
-			  }
-			  def thread2 = Thread.start {
-				  writeDuration += getAppendDuration(filename + "-thread2" + filenameTimestamp, writeSize);
-			  }
-			  def thread3 = Thread.start {
-				  writeDuration += getAppendDuration(filename + "-thread3" + filenameTimestamp, writeSize);
-			  }
-			  def thread4 = Thread.start {
-				  writeDuration += getAppendDuration(filename + "-thread4" + filenameTimestamp, writeSize);
+	  try {
+		  while (n < testTotalDurationInSeconds || runContinously == true) {
+			  n++;
+			  if(mode == "LoadGen") {
+					  List<Future> futures = (1..numberOfIOThreads).collect{num->
+						threadPool.submit({->
+						appendDurationClosure num } as Callable);
+					  }
+					  // recommended to use following statement to ensure the execution of all tasks.
+					  List results = futures.collect{it.get()} as List;
+				  	  writeDuration = results.sum() / numberOfIOThreads;
+			  } else {
+				  writeDuration = getWriteDuration(filename, writeSize);
 			  }
 			  
-			  thread1.join()
-			  thread2.join()
-			  thread3.join()
-			  thread4.join()
-			  
-			  writeDuration = writeDuration / 4;
-		  } else {
-			  writeDuration = getWriteDuration(filename, writeSize);
+			  writeDurationSum += writeDuration;
+			  writeDurationSumInLastMinute += writeDuration;
+			  if(writeDuration <= 50) {
+				  LESS_THAN_50_MILLISECONDS++;
+			  } else if (50 < writeDuration && writeDuration <= 100) {
+				  BETWEEN_50_AND_100_MILLISECONDS++;
+			  } else if (100 < writeDuration && writeDuration <= 500) {
+				  BETWEEN_100_AND_500_MILLISECONDS++;
+			  } else if (500 < writeDuration && writeDuration <= 1000) {
+				  BETWEEN_500_AND_1000_MILLISECONDS++;
+			  } else if (1000 < writeDuration && writeDuration <= 5000) {
+				  BETWEEN_1000_AND_5000_MILLISECONDS++;
+			  } else if (5000 < writeDuration && writeDuration <= 10000) {
+				  BETWEEN_5000_AND_10000_MILLISECONDS++;
+			  } else if (writeDuration > 10000) {
+				  MORE_THAN_10000_MILLISECONDS++;
+			  }
+			  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
+			  if (mode == "Monitoring") this.publisher.publishMetric(writeDuration);
+			  if(n % calculationPeriod == 0) {
+				  //Change filename timestamp
+				  filenameTimestamp = "-" + new Date().time.toString();
+				  
+				  //Calculate metrics inside the period
+				  writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
+				  LESS_THAN_50_MILLISECONDS_PERCENTAGE = (LESS_THAN_50_MILLISECONDS / calculationPeriod)*100;
+				  BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = (BETWEEN_50_AND_100_MILLISECONDS / calculationPeriod)*100;
+				  BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = (BETWEEN_100_AND_500_MILLISECONDS / calculationPeriod)*100;
+				  BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = (BETWEEN_500_AND_1000_MILLISECONDS / calculationPeriod)*100;
+				  BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = (BETWEEN_1000_AND_5000_MILLISECONDS / calculationPeriod)*100;
+				  BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = (BETWEEN_5000_AND_10000_MILLISECONDS / calculationPeriod)*100;
+				  MORE_THAN_10000_MILLISECONDS_PERCENTAGE = (MORE_THAN_10000_MILLISECONDS / calculationPeriod)*100;
+				  totalWriteDurationAverage = writeDurationSum / n;
+				  
+				  //Publish metrics to cloudwatch
+				  List metricsList = [LESS_THAN_50_MILLISECONDS_PERCENTAGE,BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE,BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE,BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE,BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE,BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE,MORE_THAN_10000_MILLISECONDS_PERCENTAGE];
+				  if (mode == "Monitoring") this.publisher.publishMetrics(metricsList);
+				  
+				  //Print metrics to CSV format
+				  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE) + "," + writeDurationSum + "," + totalWriteDurationAverage);
+				  
+				  // Reseting variables so we get just the last minute statistics for them.
+				  writeDurationSumInLastMinute = writeDurationAverageInLastMinute = 0;
+				  LESS_THAN_50_MILLISECONDS = BETWEEN_50_AND_100_MILLISECONDS = BETWEEN_100_AND_500_MILLISECONDS = BETWEEN_500_AND_1000_MILLISECONDS = BETWEEN_1000_AND_5000_MILLISECONDS = BETWEEN_5000_AND_10000_MILLISECONDS = MORE_THAN_10000_MILLISECONDS = 0.0;
+				  LESS_THAN_50_MILLISECONDS_PERCENTAGE = BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = MORE_THAN_10000_MILLISECONDS_PERCENTAGE = 0.0;
+			  }
+			  Thread.sleep((1000/writesPerSecond).toLong());
 		  }
-		  
-		  writeDurationSum += writeDuration;
-		  writeDurationSumInLastMinute += writeDuration;
-		  if(writeDuration <= 50) {
-			  LESS_THAN_50_MILLISECONDS++;
-		  } else if (50 < writeDuration && writeDuration <= 100) {
-			  BETWEEN_50_AND_100_MILLISECONDS++;
-		  } else if (100 < writeDuration && writeDuration <= 500) {
-			  BETWEEN_100_AND_500_MILLISECONDS++;
-		  } else if (500 < writeDuration && writeDuration <= 1000) {
-			  BETWEEN_500_AND_1000_MILLISECONDS++;
-		  } else if (1000 < writeDuration && writeDuration <= 5000) {
-			  BETWEEN_1000_AND_5000_MILLISECONDS++;
-		  } else if (5000 < writeDuration && writeDuration <= 10000) {
-			  BETWEEN_5000_AND_10000_MILLISECONDS++;
-		  } else if (writeDuration > 10000) {
-			  MORE_THAN_10000_MILLISECONDS++;
-		  }
-		  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
-		  if (type == "Monitoring") this.publisher.publishMetric(writeDuration);
-		  if(n % calculationPeriod == 0) {
-			  //Change filename timestamp
-			  filenameTimestamp = "-" + new Date().time.toString();
-			  
-			  //Calculate metrics inside the period
-			  writeDurationAverageInLastMinute = writeDurationSumInLastMinute / calculationPeriod;
-			  LESS_THAN_50_MILLISECONDS_PERCENTAGE = (LESS_THAN_50_MILLISECONDS / calculationPeriod)*100;
-			  BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = (BETWEEN_50_AND_100_MILLISECONDS / calculationPeriod)*100;
-			  BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = (BETWEEN_100_AND_500_MILLISECONDS / calculationPeriod)*100;
-			  BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = (BETWEEN_500_AND_1000_MILLISECONDS / calculationPeriod)*100;
-			  BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = (BETWEEN_1000_AND_5000_MILLISECONDS / calculationPeriod)*100;
-			  BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = (BETWEEN_5000_AND_10000_MILLISECONDS / calculationPeriod)*100;
-			  MORE_THAN_10000_MILLISECONDS_PERCENTAGE = (MORE_THAN_10000_MILLISECONDS / calculationPeriod)*100;
-			  totalWriteDurationAverage = writeDurationSum / n;
-			  
-			  //Publish metrics to cloudwatch
-			  List metricsList = [LESS_THAN_50_MILLISECONDS_PERCENTAGE,BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE,BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE,BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE,BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE,BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE,MORE_THAN_10000_MILLISECONDS_PERCENTAGE];
-			  if (type == "Monitoring") this.publisher.publishMetrics(metricsList);
-			  
-			  //Print metrics to CSV format
-			  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE) + "," + writeDurationSum + "," + totalWriteDurationAverage);
-			  
-			  // Reseting variables so we get just the last minute statistics for them.
-			  writeDurationSumInLastMinute = writeDurationAverageInLastMinute = 0;
-			  LESS_THAN_50_MILLISECONDS = BETWEEN_50_AND_100_MILLISECONDS = BETWEEN_100_AND_500_MILLISECONDS = BETWEEN_500_AND_1000_MILLISECONDS = BETWEEN_1000_AND_5000_MILLISECONDS = BETWEEN_5000_AND_10000_MILLISECONDS = MORE_THAN_10000_MILLISECONDS = 0.0;
-			  LESS_THAN_50_MILLISECONDS_PERCENTAGE = BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE = BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE = BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE = BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE = BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE = MORE_THAN_10000_MILLISECONDS_PERCENTAGE = 0.0;
-		  }
-		  Thread.sleep((1000/writesPerSecond).toLong());
+	  }finally {
+		  threadPool.shutdown()
 	  }
 	  return totalWriteDurationAverage;
 	}
@@ -176,32 +177,35 @@ class LatencyBenchmark {
 	  boolean runContinously;
 	  int writesPerSecond;
 	  long writeSize;
+	  int numberOfIOThreads;
 	  int calculationPeriod;
 	  
 	  String type = (args) ? args[0] : "";
 	  
 	  if (type == "LoadGen") {
-		  if(args.length < 6) {
-			  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <type> <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <writes size> <statistics calculation period>");
+		  if(args.length < 7) {
+			  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <type> <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <number of IO threads> <writes size> <statistics calculation period>");
 			  System.exit(1);
 		  }
 		  ds = new LatencyBenchmark(args[1]);
 		  testTotalDurationInSeconds = Integer.parseInt(args[2]);
 		  runContinously = Boolean.parseBoolean(args[3]);
 		  writesPerSecond = Integer.parseInt(args[4]);
-		  writeSize = Long.parseLong(args[5]);
-		  calculationPeriod = Integer.parseInt(args[6]);
+		  numberOfIOThreads = Integer.parseInt(args[5]);
+		  writeSize = Long.parseLong(args[6]);
+		  calculationPeriod = Integer.parseInt(args[7]);
 	  } else if (type == "Monitoring") {
-		  if(args.length < 8) {
-			  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <type> <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <writes size> <statistics calculation period> <Cloudwatch Dimension> <Cloudwatch Namespace>");
+		  if(args.length < 9) {
+			  System.out.println("Usage: java -jar diskLatencyMonitor-Rodrigo-1.0-all.jar <type> <file and path to write data> <Test Duration in seconds> <run continously? [true||false]> <writes per second> <number of IO threads> <writes size> <statistics calculation period> <Cloudwatch Dimension> <Cloudwatch Namespace>");
 			  System.exit(1);
 		  }
-		  ds = new LatencyBenchmark(args[1], args[6], args[7]);
+		  ds = new LatencyBenchmark(args[1], args[8], args[9]);
 		  testTotalDurationInSeconds = Integer.parseInt(args[2]);
 		  runContinously = Boolean.parseBoolean(args[3]);
 		  writesPerSecond = Integer.parseInt(args[4]);
-		  writeSize = Long.parseLong(args[5]);
-		  calculationPeriod = Integer.parseInt(args[6]);
+		  numberOfIOThreads = Integer.parseInt(args[5]);
+		  writeSize = Long.parseLong(args[6]);
+		  calculationPeriod = Integer.parseInt(args[7]);
 	  } else {
 		  System.out.println("You must provide type of the tool: LoadGen or Monitoring.");
 		  System.exit(1);
@@ -210,7 +214,8 @@ class LatencyBenchmark {
 	  System.out.println("Writting " + writesPerSecond + " per second...");
 	  
 	  try {
-		  ds.getWriteDurationAverage(testTotalDurationInSeconds, runContinously, writesPerSecond, writeSize, calculationPeriod, type);
+		  //System.out.println(testTotalDurationInSeconds+ "|" + runContinously+ "|" + writesPerSecond+ "|" + numberOfIOThreads+ "|" + writeSize+ "|" + calculationPeriod+ "|" + type);
+		  ds.getWriteDurationAverage(testTotalDurationInSeconds, runContinously, writesPerSecond, numberOfIOThreads, writeSize, calculationPeriod, type);
 	  } catch (InterruptedException e) {
 		  e.printStackTrace();
 	  }
