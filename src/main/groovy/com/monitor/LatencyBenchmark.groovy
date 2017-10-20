@@ -28,7 +28,8 @@ class LatencyBenchmark {
 	}
 	
 	public long getWriteDurationAverage(long testTotalDurationInSeconds, boolean runContinously, int writesPerSecond, int numberOfIOThreads, long writeSize, int calculationPeriod, String mode) throws InterruptedException {
-	  long writeDuration = 0;
+	  long writeSum = 0;
+      long writeDuration = 0;
 	  long writeDurationSum = 0;
 	  long writeDurationSumInLastMinute = 0;
 	  long totalWriteDurationAverage = 0;
@@ -54,7 +55,7 @@ class LatencyBenchmark {
 	  def appendDurationClosure = {num ->
 		  writeDuration = getAppendDuration(filename + "-thread-" + num + filenameTimestamp, writeSize);
 	  }
-	  def threadPool = Executors.newFixedThreadPool(7);
+	  def threadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 	  System.out.println("type,DATE,n,WRITE_DURATION,LESS_THAN_50_MILLISECONDS,BETWEEN_50_AND_100_MILLISECONDS,BETWEEN_100_AND_500_MILLISECONDS,BETWEEN_500_AND_1000_MILLISECONDS,BETWEEN_1000_AND_5000_MILLISECONDS,BETWEEN_5000_AND_10000_MILLISECONDS,MORE_THAN_10000_MILLISECONDS,WRITE_DURATION_SUM,TOTAL_WRITE_DURATION_AVERAGE");
 	  try {
 		  while (n < testTotalDurationInSeconds || runContinously == true) {
@@ -67,6 +68,7 @@ class LatencyBenchmark {
 					  // recommended to use following statement to ensure the execution of all tasks.
 					  List results = futures.collect{it.get()} as List;
 				  	  writeDuration = results.sum() / numberOfIOThreads;
+					  writeSum += writeSize * numberOfIOThreads;
 			  } else {
 				  writeDuration = getWriteDuration(filename, writeSize);
 			  }
@@ -88,7 +90,7 @@ class LatencyBenchmark {
 			  } else if (writeDuration > 10000) {
 				  MORE_THAN_10000_MILLISECONDS++;
 			  }
-			  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS));
+			  System.out.println("I," + new Date().toString() + "," + n + "," + writeDuration + "," + df.format(LESS_THAN_50_MILLISECONDS) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS) + "," + df.format(MORE_THAN_10000_MILLISECONDS) + "," + writeSum);
 			  if (mode == "Monitoring") this.publisher.publishMetric(writeDuration);
 			  if(n % calculationPeriod == 0) {
 				  //Change filename timestamp
@@ -110,7 +112,7 @@ class LatencyBenchmark {
 				  if (mode == "Monitoring") this.publisher.publishMetrics(metricsList);
 				  
 				  //Print metrics to CSV format
-				  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE) + "," + writeDurationSum + "," + totalWriteDurationAverage);
+				  System.out.println("S," + new Date().toString() + "," + n + "," + writeDurationAverageInLastMinute + "," + df.format(LESS_THAN_50_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_50_AND_100_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_100_AND_500_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_500_AND_1000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_1000_AND_5000_MILLISECONDS_PERCENTAGE) + "," + df.format(BETWEEN_5000_AND_10000_MILLISECONDS_PERCENTAGE) + "," + df.format(MORE_THAN_10000_MILLISECONDS_PERCENTAGE) + "," + writeDurationSum + "," + totalWriteDurationAverage + "," + writeSum);
 				  
 				  // Reseting variables so we get just the last minute statistics for them.
 				  writeDurationSumInLastMinute = writeDurationAverageInLastMinute = 0;
@@ -143,7 +145,10 @@ class LatencyBenchmark {
   
 	private long getAppendDuration(String filename, long length) {
 		long initialTime = new Date().getTime();
-		String string = randomAlphaNumeric(length);
+		String string = new char[length].toString(); //randomAlphaNumeric(length);
+		//long finalTimeStringGen = new Date().getTime();
+		//long durationStringGen = (finalTimeStringGen - initialTime);
+		//System.out.println("Duration string generation: " + durationStringGen);
 		try {
 		  Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename, true), "utf-8"))
 		  writer.append(string);
@@ -157,11 +162,24 @@ class LatencyBenchmark {
 		return duration;
 	}
 	
+	private static final char [] subset = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
+	
+	public static String randomAlphaNumeric2(long length) {
+		Random r = new Random();
+		char[] buf = new char[length];
+		for (int i=0;i<buf.length;i++) {
+			int index = r.nextInt(subset.length);
+			buf[i] = subset[index];
+		}
+
+		return new String(buf);
+	}
+	
 	private static final String ALPHA_NUMERIC_STRING = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 	  
-	public static String randomAlphaNumeric(long count) {
-	  StringBuilder builder = new StringBuilder();
-	  while (count-- != 0) {
+	public static String randomAlphaNumeric(int length) {
+	  StringBuilder builder = new StringBuilder(length);
+	  while (length-- != 0) {
 		int character = (int) (Math.random() * ALPHA_NUMERIC_STRING.length());
 		builder.append(ALPHA_NUMERIC_STRING.charAt(character));
 	  }
@@ -211,6 +229,7 @@ class LatencyBenchmark {
 		  System.exit(1);
 	  }
 	  
+	  System.out.println("CPUs: " + Runtime.getRuntime().availableProcessors());
 	  System.out.println("Writting " + writesPerSecond + " per second...");
 	  
 	  try {
