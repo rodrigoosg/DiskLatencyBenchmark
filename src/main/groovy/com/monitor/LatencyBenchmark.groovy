@@ -145,7 +145,7 @@ class LatencyBenchmark {
   
 	private long getAppendDuration(String filename, long length) {
 		long initialTime = new Date().getTime();
-		String string = new char[length].toString(); //randomAlphaNumeric(length);
+		String string = randomAlphaNumericImproved(length); //new char[length].toString(); //randomAlphaNumeric(length);
 		//long finalTimeStringGen = new Date().getTime();
 		//long durationStringGen = (finalTimeStringGen - initialTime);
 		//System.out.println("Duration string generation: " + durationStringGen);
@@ -164,7 +164,7 @@ class LatencyBenchmark {
 	
 	private static final char [] subset = "0123456789abcdefghijklmnopqrstuvwxyz".toCharArray();
 	
-	public static String randomAlphaNumeric2(long length) {
+	public static String randomAlphaNumericImproved(long length) {
 		Random r = new Random();
 		char[] buf = new char[length];
 		for (int i=0;i<buf.length;i++) {
