@@ -129,7 +129,7 @@ class LatencyBenchmark {
 	
 	private long getWriteDuration(String filename, long length) {
 		long initialTime = new Date().getTime();
-		String string = randomAlphaNumeric(length);
+		String string = randomAlphaNumericImproved(length);
 		try {
 		  Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), "utf-8"))
 		  writer.write(string);
