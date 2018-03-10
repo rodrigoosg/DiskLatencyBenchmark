@@ -1,0 +1,5 @@
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/share/afu-share-fs-43b46cec-16kb 0 true 1 1 16384 240 afu-share-fs-43b46cec DFW/EFS-STAGE >> /efs-186/afu-share-fs-43b46cec-upload.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/mfvp/efs3/afu-mfvp-fs-48b46ce1-16kb 0 true 1 1 16384 240 afu-mfvp-fs-48b46ce1 DFW/EFS-STAGE >> /efs-186/afu-mfvp-fs-48b46ce1-upload.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/mfvp/efs1/efs1-6-27-fs-9530e13c-16kb 0 true 1 1 16384 240 efs1-6-27-fs-9530e13c DFW/EFS-STAGE >> /efs-186/efs1-6-27-fs-9530e13c-upload.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/mfvp/efs4/efs4-5-224-fs-4eb46ce7-16kb 0 true 1 1 16384 240 efs4-5-224-fs-4eb46ce7 DFW/EFS-STAGE >> /efs-186/efs4-5-224-fs-4eb46ce7-upload.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/mfvp/efs2/efs2-6-242-fs-cfa97c66-16kb 0 true 1 1 16384 240 efs2-6-242-fs-cfa97c66 DFW/EFS-STAGE >> /efs-186/efs2-6-242-fs-cfa97c66-upload.csv 2>&1&
