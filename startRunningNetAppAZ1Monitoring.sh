@@ -1,0 +1,3 @@
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/st1_vol1_v4/az1_st1_vol1_v4-16kb 0 true 1 1 16384 240 az1_st1_vol1_v4 DFW/NetApp >> /mnt/monitoring/az1_st1_vol1_v4.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/gp2_vol2_6dsk_test/az1_gp2_vol2_6dsk_test-16kb 0 true 1 1 16384 240 az1_gp2_vol2_6dsk_test DFW/NetApp >> /mnt/monitoring/az1_gp2_vol2_6dsk_test.csv 2>&1&
+nohup java -jar build/libs/diskLatencyMonitor-Rodrigo-1.0-all.jar Monitoring /mnt/sg1_test_v5/sg1_test_v5-16kb 0 true 1 1 16384 240 sg1_test_v5 DFW/NetApp >> /mnt/monitoring/sg1_test_v5.csv 2>&1&
